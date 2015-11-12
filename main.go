@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	// Time allowed to write the file to the client.
+	// Time allowed to write data to the client.
 	writeWait = 10 * time.Second
 
 	// Time allowed to read the next pong message from the client.
@@ -22,9 +22,6 @@ const (
 
 	// Send pings to client with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
-
-	// Poll file for changes with this period.
-	filePeriod = 50 * time.Millisecond
 )
 
 var (
@@ -61,6 +58,9 @@ func writer(ws *websocket.Conn) {
 		pingTicker.Stop()
 		ws.Close()
 	}()
+
+	log.Printf("%s", events)
+
 	for {
 		select {
 		case event := <-events:
@@ -164,7 +164,7 @@ const homeHTML = `<!DOCTYPE html>
                     data.textContent = 'Connection closed';
                 }
                 conn.onmessage = function(evt) {
-                    console.log('file updated');
+                    console.log('file updated', evt.data);
                     data.textContent = evt.data;
                 }
             })();

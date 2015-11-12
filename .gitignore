@@ -1,4 +1,5 @@
 ws
 .idea/
 *.iml
+dist/*
 
