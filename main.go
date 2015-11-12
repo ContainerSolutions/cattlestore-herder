@@ -122,8 +122,8 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func initMarathonClient() (marathon.Marathon, error) {
 	// Configure client
 	config := marathon.NewDefaultConfig()
-	log.Printf(marathonAddr)
-	config.URL = marathonAddr
+	//	log.Printf(marathonAddr)
+	config.URL = "http://172.17.0.1:8080"
 
 	return marathon.NewClient(config)
 }
@@ -153,7 +153,7 @@ func main() {
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
-	if err := http.ListenAndServe(marathonAddr, nil); err != nil {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
