@@ -10,8 +10,11 @@ import (
 	"text/template"
 	"time"
 
+	"encoding/json"
+	"fmt"
 	"github.com/gambol99/go-marathon"
 	"github.com/gorilla/websocket"
+	"io/ioutil"
 	"path/filepath"
 )
 
@@ -26,7 +29,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Poll file for changes with this period.
-	filePeriod = 10 * time.Second
+	filePeriod = 2 * time.Second
 
 	marathonAddr = "http://172.17.0.1:8080"
 )
@@ -60,12 +63,41 @@ func writer(ws *websocket.Conn) {
 		fileTicker.Stop()
 		ws.Close()
 	}()
+
+	timeout := time.Duration(1 * time.Second)
+	httpClient := http.Client{
+		Timeout: timeout,
+	}
+
 	for {
 		select {
 		case <-fileTicker.C:
-			var p []byte = []byte("hoi")
+			var clusterState []Instance
 
-			// todo get tasks here, jsonise
+			app, err := client.Application("cattlestore")
+			if app != nil && err == nil {
+				for _, task := range app.Tasks {
+					resp, err := httpClient.Get(fmt.Sprintf("http://172.17.0.1:%d/info", task.Ports[0]))
+					if err != nil {
+						continue
+					}
+
+					state, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						continue
+					}
+
+					f := State{}
+					json.Unmarshal(state, &f)
+					clusterState = append(clusterState, Instance{
+						Id:  task.ID,
+						Ops: f.Ops,
+						Max: f.Max,
+					})
+				}
+			}
+
+			p, _ := json.Marshal(clusterState)
 
 			if p != nil {
 				ws.SetWriteDeadline(time.Now().Add(writeWait))
@@ -98,8 +130,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	homeTempl := template.Must(template.ParseFiles(filepath.Join("./", "index.html")))
 
-	log.Printf("%s", client)
-
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", 404)
 		return
@@ -120,29 +150,19 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 }
 
 func initMarathonClient() (marathon.Marathon, error) {
-	// Configure client
 	config := marathon.NewDefaultConfig()
-	//	log.Printf(marathonAddr)
 	config.URL = "http://172.17.0.1:8080"
-
 	return marathon.NewClient(config)
 }
 
-func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
-	app, _ := client.Application("cattlestore")
-	for _, task := range app.Tasks {
-		log.Printf("%s", task.Ports)
-	}
-
-	// Register for events
-	events := make(marathon.EventsChannel, 25)
-	err := client.AddEventsListener(events, marathon.EVENTS_APPLICATIONS)
-	if err != nil {
-		// todo retry instead of fail
-		log.Fatalf("Failed to register for events, %s", err)
-	}
-
-	return client, events
+type Instance struct {
+	Id  string `json:"id"`
+	Max int    `json:"max"`
+	Ops int    `json:"ops"`
+}
+type State struct {
+	Max int `json:"max"`
+	Ops int `json:"ops"`
 }
 
 func main() {
