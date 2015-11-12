@@ -5,17 +5,18 @@
 package main
 
 import (
-	marathon "github.com/gambol99/go-marathon"
-	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"path/filepath"
 	"text/template"
 	"time"
+
+	"github.com/gambol99/go-marathon"
+	"github.com/gorilla/websocket"
+	"path/filepath"
 )
 
 const (
-	// Time allowed to write data to the client.
+	// Time allowed to write the file to the client.
 	writeWait = 10 * time.Second
 
 	// Time allowed to read the next pong message from the client.
@@ -24,10 +25,14 @@ const (
 	// Send pings to client with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
 
-	marathonUrl = "http://172.17.0.1:8080"
+	// Poll file for changes with this period.
+	filePeriod = 10 * time.Second
+
+	marathonAddr = "http://172.17.0.1:8080"
 )
 
 var (
+	client   marathon.Marathon
 	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -47,33 +52,28 @@ func reader(ws *websocket.Conn) {
 	}
 }
 
-func handleEvent(ws *websocket.Conn, event *marathon.Event) error {
-	log.Printf("----- %s", event.Event)
-	ws.SetWriteDeadline(time.Now().Add(writeWait))
-	return ws.WriteMessage(websocket.TextMessage, []byte(event.Name))
-}
-
 func writer(ws *websocket.Conn) {
-	// this should not be here, triggers "panic: http: multiple registrations for /event"
-	// when two clients connect at the same time
-	client, events := initMarathon()
-
 	pingTicker := time.NewTicker(pingPeriod)
+	fileTicker := time.NewTicker(filePeriod)
 	defer func() {
 		pingTicker.Stop()
+		fileTicker.Stop()
 		ws.Close()
-		client.RemoveEventsListener(events)
 	}()
-
 	for {
 		select {
-		case event := <-events:
-			log.Printf("+++++ Received event: %s", event)
-			if err := handleEvent(ws, event); err != nil {
-				return
+		case <-fileTicker.C:
+			var p []byte = []byte("hoi")
+
+			// todo get tasks here, jsonise
+
+			if p != nil {
+				ws.SetWriteDeadline(time.Now().Add(writeWait))
+				if err := ws.WriteMessage(websocket.TextMessage, p); err != nil {
+					return
+				}
 			}
 		case <-pingTicker.C:
-			log.Printf("pinging %s", ws.RemoteAddr())
 			ws.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
@@ -98,8 +98,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 func serveHome(w http.ResponseWriter, r *http.Request) {
 	homeTempl := template.Must(template.ParseFiles(filepath.Join("./", "index.html")))
 
-	// todo
-	//	getTasks()
+	log.Printf("%s", client)
 
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", 404)
@@ -115,22 +114,21 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		Data string
 	}{
 		r.Host,
-		string("website goes here"),
+		string("initial data goes here"),
 	}
-
 	homeTempl.Execute(w, &v)
 }
 
-func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
+func initMarathonClient() (marathon.Marathon, error) {
 	// Configure client
 	config := marathon.NewDefaultConfig()
-	config.URL = marathonUrl
+	log.Printf(marathonAddr)
+	config.URL = marathonAddr
 
-	client, err := marathon.NewClient(config)
-	if err != nil {
-		log.Fatalf("Failed to create a client for marathon, error: %s", err)
-	}
+	return marathon.NewClient(config)
+}
 
+func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
 	app, _ := client.Application("cattlestore")
 	for _, task := range app.Tasks {
 		log.Printf("%s", task.Ports)
@@ -138,7 +136,7 @@ func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
 
 	// Register for events
 	events := make(marathon.EventsChannel, 25)
-	err = client.AddEventsListener(events, marathon.EVENTS_APPLICATIONS)
+	err := client.AddEventsListener(events, marathon.EVENTS_APPLICATIONS)
 	if err != nil {
 		// todo retry instead of fail
 		log.Fatalf("Failed to register for events, %s", err)
@@ -148,11 +146,14 @@ func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
 }
 
 func main() {
-	log.Print("Starting...")
+	var err error
+	if client, err = initMarathonClient(); err != nil {
+		log.Fatalf("No marathon client; %s", err)
+	}
 
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(marathonAddr, nil); err != nil {
 		log.Fatal(err)
 	}
 }
