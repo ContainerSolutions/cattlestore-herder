@@ -5,16 +5,12 @@
 package main
 
 import (
-	"flag"
-	"io/ioutil"
+	marathon "github.com/gambol99/go-marathon"
+	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"text/template"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 const (
@@ -32,29 +28,13 @@ const (
 )
 
 var (
-	addr      = flag.String("addr", ":8080", "http service address")
 	homeTempl = template.Must(template.New("").Parse(homeHTML))
-	filename  string
 	upgrader  = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
+	events marathon.EventsChannel
 )
-
-func readFileIfModified(lastMod time.Time) ([]byte, time.Time, error) {
-	fi, err := os.Stat(filename)
-	if err != nil {
-		return nil, lastMod, err
-	}
-	if !fi.ModTime().After(lastMod) {
-		return nil, lastMod, nil
-	}
-	p, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, fi.ModTime(), err
-	}
-	return p, fi.ModTime(), nil
-}
 
 func reader(ws *websocket.Conn) {
 	defer ws.Close()
@@ -69,39 +49,27 @@ func reader(ws *websocket.Conn) {
 	}
 }
 
-func writer(ws *websocket.Conn, lastMod time.Time) {
-	lastError := ""
+func handleEvent(ws *websocket.Conn, event *marathon.Event) error {
+	log.Printf("----- %s", event.Event)
+	ws.SetWriteDeadline(time.Now().Add(writeWait))
+	return ws.WriteMessage(websocket.TextMessage, []byte(event.Name))
+}
+
+func writer(ws *websocket.Conn) {
 	pingTicker := time.NewTicker(pingPeriod)
-	fileTicker := time.NewTicker(filePeriod)
 	defer func() {
 		pingTicker.Stop()
-		fileTicker.Stop()
 		ws.Close()
 	}()
 	for {
 		select {
-		case <-fileTicker.C:
-			var p []byte
-			var err error
-
-			p, lastMod, err = readFileIfModified(lastMod)
-
-			if err != nil {
-				if s := err.Error(); s != lastError {
-					lastError = s
-					p = []byte(lastError)
-				}
-			} else {
-				lastError = ""
-			}
-
-			if p != nil {
-				ws.SetWriteDeadline(time.Now().Add(writeWait))
-				if err := ws.WriteMessage(websocket.TextMessage, p); err != nil {
-					return
-				}
+		case event := <-events:
+			log.Printf("+++++ Received event: %s", event)
+			if err := handleEvent(ws, event); err != nil {
+				return
 			}
 		case <-pingTicker.C:
+			log.Printf("pinging %s", ws.RemoteAddr())
 			ws.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := ws.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
 				return
@@ -119,12 +87,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var lastMod time.Time
-	if n, err := strconv.ParseInt(r.FormValue("lastMod"), 16, 64); err != nil {
-		lastMod = time.Unix(0, n)
-	}
-
-	go writer(ws, lastMod)
+	go writer(ws)
 	reader(ws)
 }
 
@@ -138,32 +101,50 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	p, lastMod, err := readFileIfModified(time.Time{})
-	if err != nil {
-		p = []byte(err.Error())
-		lastMod = time.Unix(0, 0)
-	}
 	var v = struct {
 		Host    string
 		Data    string
 		LastMod string
 	}{
 		r.Host,
-		string(p),
-		strconv.FormatInt(lastMod.UnixNano(), 16),
+		string("website goes here"),
+		"1",
 	}
+
 	homeTempl.Execute(w, &v)
 }
 
-func main() {
-	flag.Parse()
-	if flag.NArg() != 1 {
-		log.Fatal("filename not specified")
+func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
+	// Configure client
+	config := marathon.NewDefaultConfig()
+	config.URL = "http://172.17.0.1:8080"
+
+	client, err := marathon.NewClient(config)
+	if err != nil {
+		log.Fatalf("Failed to create a client for marathon, error: %s", err)
 	}
-	filename = flag.Args()[0]
+
+	// Register for events
+	events := make(marathon.EventsChannel, 25)
+	err = client.AddEventsListener(events, marathon.EVENTS_APPLICATIONS)
+	if err != nil {
+		// todo retry instead of fail
+		log.Fatalf("Failed to register for events, %s", err)
+	}
+
+	return client, events
+}
+
+func main() {
+	log.Print("Starting...")
+
+	client, events := initMarathon()
+	defer client.RemoveEventsListener(events)
+	log.Printf("%s", events)
+
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
-	if err := http.ListenAndServe(*addr, nil); err != nil {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
