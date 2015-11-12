@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 	"log"
 	"net/http"
+	"path/filepath"
 	"text/template"
 	"time"
 )
@@ -22,15 +23,15 @@ const (
 
 	// Send pings to client with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
+
+	marathonUrl = "http://172.17.0.1:8080"
 )
 
 var (
-	homeTempl = template.Must(template.New("").Parse(homeHTML))
-	upgrader  = websocket.Upgrader{
+	upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	events marathon.EventsChannel
 )
 
 func reader(ws *websocket.Conn) {
@@ -53,13 +54,16 @@ func handleEvent(ws *websocket.Conn, event *marathon.Event) error {
 }
 
 func writer(ws *websocket.Conn) {
+	// this should not be here, triggers "panic: http: multiple registrations for /event"
+	// when two clients connect at the same time
+	client, events := initMarathon()
+
 	pingTicker := time.NewTicker(pingPeriod)
 	defer func() {
 		pingTicker.Stop()
 		ws.Close()
+		client.RemoveEventsListener(events)
 	}()
-
-	log.Printf("%s", events)
 
 	for {
 		select {
@@ -92,6 +96,11 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
+	homeTempl := template.Must(template.ParseFiles(filepath.Join("./", "index.html")))
+
+	// todo
+	//	getTasks()
+
 	if r.URL.Path != "/" {
 		http.Error(w, "Not found", 404)
 		return
@@ -102,13 +111,11 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	var v = struct {
-		Host    string
-		Data    string
-		LastMod string
+		Host string
+		Data string
 	}{
 		r.Host,
 		string("website goes here"),
-		"1",
 	}
 
 	homeTempl.Execute(w, &v)
@@ -117,11 +124,16 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
 	// Configure client
 	config := marathon.NewDefaultConfig()
-	config.URL = "http://172.17.0.1:8080"
+	config.URL = marathonUrl
 
 	client, err := marathon.NewClient(config)
 	if err != nil {
 		log.Fatalf("Failed to create a client for marathon, error: %s", err)
+	}
+
+	app, _ := client.Application("cattlestore")
+	for _, task := range app.Tasks {
+		log.Printf("%s", task.Ports)
 	}
 
 	// Register for events
@@ -138,37 +150,9 @@ func initMarathon() (marathon.Marathon, marathon.EventsChannel) {
 func main() {
 	log.Print("Starting...")
 
-	client, events := initMarathon()
-	defer client.RemoveEventsListener(events)
-	log.Printf("%s", events)
-
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
 }
-
-const homeHTML = `<!DOCTYPE html>
-<html lang="en">
-    <head>
-        <title>WebSocket Example</title>
-    </head>
-    <body>
-        <pre id="fileData">{{.Data}}</pre>
-        <script type="text/javascript">
-            (function() {
-                var data = document.getElementById("fileData");
-                var conn = new WebSocket("ws://{{.Host}}/ws?lastMod={{.LastMod}}");
-                conn.onclose = function(evt) {
-                    data.textContent = 'Connection closed';
-                }
-                conn.onmessage = function(evt) {
-                    console.log('file updated', evt.data);
-                    data.textContent = evt.data;
-                }
-            })();
-        </script>
-    </body>
-</html>
-`
