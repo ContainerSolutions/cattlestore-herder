@@ -29,10 +29,14 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Poll file for changes with this period.
-	filePeriod = 2 * time.Second
+	filePeriod = 1 * time.Second
 
 	marathonAddr = "http://172.17.0.1:8080"
 )
+
+// custom template delimiters since the Go default delimiters clash
+// with Angular's default.
+var templateDelimiters = []string{"{{%", "%}}"}
 
 var (
 	client   marathon.Marathon
@@ -128,12 +132,10 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveHome(w http.ResponseWriter, r *http.Request) {
-	homeTempl := template.Must(template.ParseFiles(filepath.Join("./", "index.html")))
+	temp := template.New("index.html")
+	temp.Delims(templateDelimiters[0], templateDelimiters[1])
+	temp.ParseFiles(filepath.Join("./", "index.html"))
 
-	if r.URL.Path != "/" {
-		http.Error(w, "Not found", 404)
-		return
-	}
 	if r.Method != "GET" {
 		http.Error(w, "Method not allowed", 405)
 		return
@@ -146,7 +148,7 @@ func serveHome(w http.ResponseWriter, r *http.Request) {
 		r.Host,
 		string("initial data goes here"),
 	}
-	homeTempl.Execute(w, &v)
+	temp.Execute(w, &v)
 }
 
 func initMarathonClient() (marathon.Marathon, error) {
@@ -170,7 +172,7 @@ func main() {
 	if client, err = initMarathonClient(); err != nil {
 		log.Fatalf("No marathon client; %s", err)
 	}
-
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
 	if err := http.ListenAndServe(":8080", nil); err != nil {

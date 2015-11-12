@@ -1,0 +1,4 @@
+cattlestore-herder:
+  image: "containersol/herder"
+  ports:
+   - "8080:8080"

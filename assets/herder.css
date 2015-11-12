@@ -1,0 +1,45 @@
+.cattle-5 {
+    max-width: 760px;
+}
+
+.cattle {
+    display: inline-block;
+    margin: 0 20px 20px 0;
+    position: relative;
+    width: 124px;
+    height: 118px;
+}
+.cattle .panel-body {
+    text-align: center;
+    padding: 0;
+}
+.cattle .numbers {
+    font-size: 2.5em;
+    position: relative;
+    z-index: 10;
+}
+.cattle .numbers i {
+    color: #ddd;
+}
+.cattle .overlay {
+    background-color: #00bfff;
+    position: absolute;
+    bottom: 0px;
+    left: 0px;
+    height: 0%;
+    width: 100%;
+    z-index: 1;
+}
+.cattle .cow_id {
+    font-family: "Lucida Console", Monaco, monospace;
+    color: #000;
+    position: absolute;
+    bottom: 4px;
+    left: 10px;
+    z-index: 10;
+}
+.boom {
+    position: absolute;
+    z-index: 11;
+    left: 0;
+}

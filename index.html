@@ -1,22 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" ng-app="herder" ng-controller="HerderCtrl">
 <head>
-	<title>WebSocket Example</title>
+	<title>Cattlestore Herder</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/herder.css">
+    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
+    <script src="assets/app.js"></script>
 </head>
-<body>
-<pre id="fileData">{{.Data}}</pre>
-<script type="text/javascript">
-            (function() {
-                var data = document.getElementById("fileData");
-                var conn = new WebSocket("ws://{{.Host}}/ws");
-                conn.onclose = function(evt) {
-                    data.textContent = 'Connection closed';
-                }
-                conn.onmessage = function(evt) {
-                    console.log('data received:', evt.data);
-                    data.textContent = evt.data;
-                }
-            })();
-        </script>
+<body class="container">
+    <span ng-init="host = '{{%.Host%}}'"></span>
+    <div class="row">
+        <div class="col-md-12">
+            <div class="cattle-5">
+                <h1>Wheel of Fortune</h1>
+                <hr>
+                <div class="loading" ng-hide="cattle.length">Loading cattle ...</div>
+                <div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">
+                    <div class="panel-body">
+                        <span class="cow_id">{{cow.id | limitTo: -8}}</span>
+                        <span class="numbers">{{cow.ops}}<!--<i> / {{cow.max}}</i>--></span>
+                        <img class="boom" src="assets/boom.gif" ng-hide="cow.ops < cow.max">
+                        <div class="overlay" style="height: {{cow.ops / cow.max * 100}}%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
