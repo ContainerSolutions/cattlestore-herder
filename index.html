@@ -23,7 +23,7 @@
                 <div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">
                     <div class="panel-body">
                         <span class="cow_id">{{cow.id | limitTo: 8:12}}</span>
-                        <span class="numbers">{{cow.ops}}<!--<i> / {{cow.max}}</i>--></span>
+                        <span class="numbers">{{cow.ops}}<i> / {{cow.max}}</i></span>
                         <img class="boom" src="assets/boom.gif" ng-hide="cow.ops < cow.max">
                         <div class="overlay" style="height: {{cow.ops / cow.max * 100}}%;"></div>
                     </div>
