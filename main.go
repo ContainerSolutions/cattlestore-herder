@@ -5,17 +5,16 @@
 package main
 
 import (
-	"log"
-	"net/http"
-	"text/template"
-	"time"
-
 	"encoding/json"
 	"fmt"
 	"github.com/gambol99/go-marathon"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
+	"log"
+	"net/http"
 	"path/filepath"
+	"text/template"
+	"time"
 )
 
 const (
@@ -94,14 +93,19 @@ func writer(ws *websocket.Conn) {
 					f := State{}
 					json.Unmarshal(state, &f)
 					clusterState = append(clusterState, Instance{
-						Id:  task.ID,
+						Id:  task.ID[12:20],
 						Ops: f.Ops,
 						Max: f.Max,
 					})
 				}
 			}
 
-			p, _ := json.Marshal(clusterState)
+			p, err := json.Marshal(clusterState)
+			if err != nil {
+				continue
+			}
+			//						p := []byte(`[{"id":"6cd8a58f","max":24,"ops":24},{"id":"6cd8a58e","max":24,"ops":18},
+			//						{"id":"6cdf3444","max":30,"ops":12},{"id":"6cbdca8b","max":13,"ops":3},{"id":"6ce8f854","max":13,"ops":12}]`)
 
 			if p != nil {
 				ws.SetWriteDeadline(time.Now().Add(writeWait))
@@ -175,6 +179,7 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("assets"))))
 	http.HandleFunc("/", serveHome)
 	http.HandleFunc("/ws", serveWs)
+	log.Print("Ready to herd...")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}

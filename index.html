@@ -2,34 +2,33 @@
 <html lang="en" ng-app="herder" ng-controller="HerderCtrl">
 <head>
 	<title>Cattlestore Herder</title>
-    <link rel="stylesheet" href="assets/bootstrap.min.css">
-    <link rel="stylesheet" href="assets/herder.css">
-    <script src="assets/jquery-2.1.4.min.js"></script>
-    <script src="assets/bootstrap.min.js"></script>
-    <script src="assets/angular.min.js"></script>
-    <script src="assets/app.js"></script>
+	<link rel="stylesheet" href="assets/bootstrap.min.css">
+	<link rel="stylesheet" href="assets/herder.css">
+	<script src="assets/angular.min.js"></script>
+	<script src="assets/app.js"></script>
 </head>
 <body class="container-fluid">
 <div class="header">
-    <img src="assets/logo.png" height="50">
+	<img id="logo" src="assets/logo.png"/>
+
+	<h1>Wheel of Fortune</h1>
 </div>
 <span ng-init="host = '{{%.Host%}}'"></span>
-    <div class="row">
-        <div class="col-md-12">
-            <div class="cattle-5">
-                <h1>Mantl Wheel of Fortune</h1>
-                <hr>
-                <div class="loading" ng-hide="cattle.length">Loading cattle ...</div>
-                <div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">
-                    <div class="panel-body">
-                        <span class="cow_id">{{cow.id | limitTo: 8:12}}</span>
-                        <span class="numbers">{{cow.ops}}<i> / {{cow.max}}</i></span>
-                        <img class="boom" src="assets/boom.gif" ng-hide="cow.ops < cow.max">
-                        <div class="overlay" style="height: {{cow.ops / cow.max * 100}}%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
+<div class="row">
+	<div class="col-md-12">
+		<div class="loading" ng-hide="cattle.length">Loading cattle ...</div>
+		<div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">
+			<div class="numbers">{{cow.ops}}<i> / {{cow.max}}</i></div>
+			<div class="panel-body">
+				<span class="dot" ng-style="graydot(cow.max)"></span>
+				<span class="dot" ng-style="reddot(cow.ops, cow.max)"></span>
+
+				<!--<span class="cow_id">{{cow.id}}</span>-->
+				<!--<img class="boom" src="assets/boom.gif" ng-hide="cow.ops < cow.max">-->
+			</div>
+		</div>
+	</div>
+</div>
 </body>
 </html>
