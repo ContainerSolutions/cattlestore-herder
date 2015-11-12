@@ -2,19 +2,22 @@
 <html lang="en" ng-app="herder" ng-controller="HerderCtrl">
 <head>
 	<title>Cattlestore Herder</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css" integrity="sha512-dTfge/zgoMYpP7QbHy4gWMEGsbsdZeCXz7irItjcC3sPUFtf0kuFbDz/ixG7ArTxmDjLXDmezHubeNikyKGVyQ==" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/bootstrap.min.css">
     <link rel="stylesheet" href="assets/herder.css">
-    <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js" integrity="sha512-K1qjQ+NcF2TYO/eI3M6v8EiNYZfA95pQumfvcVrTHtwQVDG+aHRqLi/ETn2uB+1JqwYqVG3LIvdm9lj6imS/pQ==" crossorigin="anonymous"></script>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.4.7/angular.min.js"></script>
+    <script src="assets/jquery-2.1.4.min.js"></script>
+    <script src="assets/bootstrap.min.js"></script>
+    <script src="assets/angular.min.js"></script>
     <script src="assets/app.js"></script>
 </head>
-<body class="container">
-    <span ng-init="host = '{{%.Host%}}'"></span>
+<body class="container-fluid">
+<div class="header">
+    <img src="assets/logo.png" height="50">
+</div>
+<span ng-init="host = '{{%.Host%}}'"></span>
     <div class="row">
         <div class="col-md-12">
             <div class="cattle-5">
-                <h1>Wheel of Fortune</h1>
+                <h1>Mantl Wheel of Fortune</h1>
                 <hr>
                 <div class="loading" ng-hide="cattle.length">Loading cattle ...</div>
                 <div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">

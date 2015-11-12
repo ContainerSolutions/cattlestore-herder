@@ -1,3 +1,21 @@
+html, body {
+    background-color: #333;
+}
+
+.header {
+    background-image: url("strip.png");
+    background-repeat: no-repeat;
+    padding: 10px;
+}
+
+hr {
+    border-top: 1px solid #ff0031;
+}
+
+h1 {
+    color: #fff;
+}
+
 .cattle-5 {
     max-width: 760px;
 }
@@ -9,11 +27,16 @@
     width: 124px;
     height: 118px;
 }
+.cattle .panel {
+    border: 0px;
+}
 .cattle .panel-body {
     text-align: center;
     padding: 0;
+    background-color: #ffe001;
 }
 .cattle .numbers {
+    color: #333;
     font-size: 2.5em;
     position: relative;
     z-index: 10;
@@ -22,7 +45,7 @@
     color: #ddd;
 }
 .cattle .overlay {
-    background-color: #00bfff;
+    background-color: #ff0031;
     position: absolute;
     bottom: 0px;
     left: 0px;
@@ -32,7 +55,7 @@
 }
 .cattle .cow_id {
     font-family: "Lucida Console", Monaco, monospace;
-    color: #000;
+    color: #333;
     position: absolute;
     bottom: 4px;
     left: 10px;
