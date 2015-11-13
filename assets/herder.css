@@ -5,18 +5,25 @@
 
 html, body {
     background-color: #333;
+    font-family: Dosis;
 }
 
 .container-fluid {
 	padding: 0
 }
 
+.col-md-12 {
+	margin-top: 20px;
+}
+
 .header {
     background-image: url("strip.png");
     background-repeat: no-repeat;
+    background-position: 50%;
+    background-size: 90%;
     padding: 10px;
-    background-color: #FCB835;
-    height: 69px;
+    background-color: #FD8B23;
+    height: 75px;
 }
 
 #logo {
@@ -25,10 +32,10 @@ html, body {
 }
 
 h1 {
-    font-family: Dosis;
-	color: #221F1F;
+    color: #eee;
     text-transform: uppercase;
-    margin: 0 0 0 200px;
+    margin: 5px 15px 0 0;
+    float: right;
 }
 
 .cattle {
@@ -68,12 +75,19 @@ h1 {
 	text-align: center;
 	width: 100%;
 	height: 20px;
-    color: #fff;
-    font-size: 1.8em;
+    color: #eee;
+    font-size: 0.9em;
     z-index: 90;
+
+
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform:translate(-50%,-50%);
+
 }
-.cattle .numbers i {
-    color: #999;
+.cattle .numbers b{
+	font-size: 3em;
 }
 .boom {
     position: absolute;

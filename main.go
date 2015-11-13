@@ -27,8 +27,11 @@ const (
 	// Send pings to client with this period. Must be less than pongWait.
 	pingPeriod = (pongWait * 9) / 10
 
-	// Poll file for changes with this period.
-	filePeriod = 1 * time.Second
+	// How long to wait between data pushes to the browser.
+	dataPushPeriod = 1 * time.Second
+
+	// How long to wait before we can scale again, in order to not overwhelm Marathon.
+	scaleCoolDownPeriod time.Duration = 5 * time.Second
 
 	marathonAddr = "http://172.17.0.1:8080"
 )
@@ -36,6 +39,8 @@ const (
 // custom template delimiters since the Go default delimiters clash
 // with Angular's default.
 var templateDelimiters = []string{"{{%", "%}}"}
+
+var lastScaleAction time.Time = time.Unix(0, 0)
 
 var (
 	client   marathon.Marathon
@@ -58,9 +63,36 @@ func reader(ws *websocket.Conn) {
 	}
 }
 
+func scale_up(ops_t float64, max_t float64) {
+	load := ops_t / max_t
+	reservoir := int(max_t - ops_t)
+	log.Printf("load: %f, reservoir: %d, max: %d", load, reservoir, int(max_t))
+
+	if load > 0.5 && reservoir < 120 {
+		var diff time.Duration
+		diff = time.Now().Sub(lastScaleAction)
+		if diff < scaleCoolDownPeriod {
+			log.Print("Not scaling due to cooldown period")
+			return
+		}
+
+		app, err := client.Application("cattlestore")
+		if err != nil {
+			log.Printf("Not scaling: %s", err)
+		}
+		newInstances := 2 + app.Instances
+
+		lastScaleAction = time.Now()
+		log.Print("SCALE UP DUDE!!!")
+		if _, err := client.ScaleApplicationInstances("cattlestore", newInstances, false); err != nil {
+			log.Printf("Could not scale: %s", err)
+		}
+	}
+}
+
 func writer(ws *websocket.Conn) {
 	pingTicker := time.NewTicker(pingPeriod)
-	fileTicker := time.NewTicker(filePeriod)
+	fileTicker := time.NewTicker(dataPushPeriod)
 	defer func() {
 		pingTicker.Stop()
 		fileTicker.Stop()
@@ -78,6 +110,8 @@ func writer(ws *websocket.Conn) {
 			var clusterState []Instance
 
 			app, err := client.Application("cattlestore")
+			ops_t, max_t := 0.0, 0.0
+
 			if app != nil && err == nil {
 				for _, task := range app.Tasks {
 					resp, err := httpClient.Get(fmt.Sprintf("http://172.17.0.1:%d/info", task.Ports[0]))
@@ -97,15 +131,21 @@ func writer(ws *websocket.Conn) {
 						Ops: f.Ops,
 						Max: f.Max,
 					})
+					ops_t += float64(f.Ops)
+					max_t += float64(f.Max)
 				}
 			}
+
+			go scale_up(ops_t, max_t)
 
 			p, err := json.Marshal(clusterState)
 			if err != nil {
 				continue
 			}
-			//						p := []byte(`[{"id":"6cd8a58f","max":24,"ops":24},{"id":"6cd8a58e","max":24,"ops":18},
-			//						{"id":"6cdf3444","max":30,"ops":12},{"id":"6cbdca8b","max":13,"ops":3},{"id":"6ce8f854","max":13,"ops":12}]`)
+			//			p := []byte(`[{"id":"6cd8a58f","max":24,"ops":24},{"id":"6cd8a58e","max":24,"ops":18},
+			//			{"id":"1cd8a58f","max":24,"ops":24},{"id":"4cd8a58e","max":24,"ops":18},
+			//			{"id":"2cd8a58f","max":24,"ops":24},{"id":"5cd8a58e","max":24,"ops":18},
+			//			{"id":"3cd8a58f","max":24,"ops":24},{"id":"7cd8a58e","max":24,"ops":18}, {"id":"6cdf3444","max":30,"ops":12},{"id":"6cbdca8b","max":13,"ops":3},{"id":"6ce8f854","max":13,"ops":12}]`)
 
 			if p != nil {
 				ws.SetWriteDeadline(time.Now().Add(writeWait))
