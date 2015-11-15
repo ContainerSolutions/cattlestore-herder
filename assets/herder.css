@@ -92,5 +92,6 @@ h1 {
 .boom {
     position: absolute;
     z-index: 11;
-    left: 0;
+    left: 24px;
+    width: 100px;
 }

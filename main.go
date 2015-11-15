@@ -36,8 +36,22 @@ const (
 	marathonAddr = "http://172.17.0.1:8080"
 )
 
-// custom template delimiters since the Go default delimiters clash
-// with Angular's default.
+type ClusterState struct {
+	Instances     []Instance `json:"instances"`
+	NrOfInstances int        `json:"nrOfInstances"`
+}
+
+type Instance struct {
+	Id  string `json:"id"`
+	Max int    `json:"max"`
+	Ops int    `json:"ops"`
+}
+type State struct {
+	Max int `json:"max"`
+	Ops int `json:"ops"`
+}
+
+// custom template delimiters since the Go default delimiters clash with Angular's default.
 var templateDelimiters = []string{"{{%", "%}}"}
 
 var lastScaleAction time.Time = time.Unix(0, 0)
@@ -107,9 +121,14 @@ func writer(ws *websocket.Conn) {
 	for {
 		select {
 		case <-fileTicker.C:
-			var clusterState []Instance
+			var clusterState ClusterState
 
 			app, err := client.Application("cattlestore")
+			if err != nil {
+				log.Printf("Not scaling: %s", err)
+			}
+			clusterState.NrOfInstances = app.Instances
+
 			ops_t, max_t := 0.0, 0.0
 
 			if app != nil && err == nil {
@@ -126,7 +145,7 @@ func writer(ws *websocket.Conn) {
 
 					f := State{}
 					json.Unmarshal(state, &f)
-					clusterState = append(clusterState, Instance{
+					clusterState.Instances = append(clusterState.Instances, Instance{
 						Id:  task.ID[12:20],
 						Ops: f.Ops,
 						Max: f.Max,
@@ -199,16 +218,6 @@ func initMarathonClient() (marathon.Marathon, error) {
 	config := marathon.NewDefaultConfig()
 	config.URL = "http://172.17.0.1:8080"
 	return marathon.NewClient(config)
-}
-
-type Instance struct {
-	Id  string `json:"id"`
-	Max int    `json:"max"`
-	Ops int    `json:"ops"`
-}
-type State struct {
-	Max int `json:"max"`
-	Ops int `json:"ops"`
 }
 
 func main() {

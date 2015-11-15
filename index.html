@@ -18,18 +18,16 @@
 <div class="row">
 	<div class="col-md-12">
 		<div class="loading" ng-hide="cattle.length">Loading cattle ...</div>
-		<div class="panel panel-default cattle" ng-repeat="cow in cattle track by cow.id">
-
+		<div class="panel panel-default cattle" ng-repeat="(id,cow) in cattle track by id">
 			<div class="panel-body">
 				<span class="dot" ng-style="graydot(cow.max)">
 					<div class="numbers"><b>{{cow.ops}}</b>&nbsp;|&nbsp;{{cow.max}}</div>
+					<!--{{cow.id}}-->
 				</span>
-				<span class="dot" ng-style="reddot(cow.ops, cow.max)">
-
-				</span>
+				<span ng-hide="cow.max == 0" class="dot" ng-style="reddot(cow.ops, cow.max)"></span>
 
 				<!--<span class="cow_id">{{cow.id}}</span>-->
-				<!--<img class="boom" src="assets/boom.gif" ng-hide="cow.ops < cow.max">-->
+				<img class="boom" src="assets/boom.gif" ng-hide="cow.max != 0"/>
 			</div>
 		</div>
 	</div>
