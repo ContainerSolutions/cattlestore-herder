@@ -2,4 +2,5 @@ ws
 .idea/
 *.iml
 dist/*
+cattlestore-herder
 
