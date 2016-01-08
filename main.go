@@ -1,7 +1,3 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package main
 
 import (
@@ -54,7 +50,7 @@ type State struct {
 // custom template delimiters since the Go default delimiters clash with Angular's default.
 var templateDelimiters = []string{"{{%", "%}}"}
 
-var lastScaleAction time.Time = time.Unix(0, 0)
+var lastScaleAction = time.Unix(0, 0)
 
 var (
 	client   marathon.Marathon
@@ -77,10 +73,10 @@ func reader(ws *websocket.Conn) {
 	}
 }
 
-func scale_up(ops_t float64, max_t float64) {
-	load := ops_t / max_t
-	reservoir := int(max_t - ops_t)
-	log.Printf("load: %f, reservoir: %d, max: %d", load, reservoir, int(max_t))
+func scaleUp(opsT float64, maxT float64) {
+	load := opsT / maxT
+	reservoir := int(maxT - opsT)
+	log.Printf("load: %f, reservoir: %d, max: %d", load, reservoir, int(maxT))
 
 	if load > 0.5 && reservoir < 120 {
 		var diff time.Duration
@@ -155,7 +151,7 @@ func writer(ws *websocket.Conn) {
 				}
 			}
 
-			go scale_up(ops_t, max_t)
+			go scaleUp(ops_t, max_t)
 
 			p, err := json.Marshal(clusterState)
 			if err != nil {
